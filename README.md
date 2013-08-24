@@ -1,4 +1,4 @@
 astar
 =====
 
-JavaScritpt implementation of A* algorythm.
+JavaScritpt implementation of the A* algorithm.
