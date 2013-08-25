@@ -4,23 +4,77 @@
     <meta charset="UTF-8">
     <title></title>
     <style>
+        body {
+            padding: 0;
+            margin: 0;
+            background: url(back.png) repeat; 
+        }
+
         canvas {
-            border: 1px solid black;
+            border: 3px solid gray;
+            border-radius: 3px;
+            box-shadow: 0px 0px 5px gray;
+            background: rgb(50, 50, 50);
+            display: block;
+            margin: 20px auto 0 auto;
+            cursor: pointer;
+        }
+
+        #controls {
+            width: 200px;
+            height: 200px;
+            padding: 5px;
+            color: white;
+            font-family: sans-serif;
+            background: rgba(0, 0, 0, .7);
+            border-radius: 3px;
+            box-shadow: 0px 0px 5px gray;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        #controls button {
+            display: block;
+            margin: 5px 5px;
+            width: 100px;
         }
     </style>
 </head>
 <body>
-    
+    <canvas id="board"></canvas>
+    <div id="controls">
+        <button id="start">Starting point</button>
+        <button id="end">Ending point</button>
+        <button id="calculate">Calculate path</button>
+        <label>Movement cost:</label>
+        <input type="range" id="passability" min="0" max="100" step="10" value="0" />
+        <input type="text" id="passabilityTextbox" size="3" value="0" />
+        <br />
+        Click and drag on the board to add obstacles.
+    </div>
 </body>
 <script src="../src/orderedlinkedlist.js"></script>
 <script src="../src/astar.js"></script>
 <script>
     window.addEventListener("load", function (e) {
-        var canvas = document.createElement("canvas");
+        var canvas = document.getElementById("board"),
+            world = [],
+            currentPassability = 0,
+            passabilityTextbox = document.getElementById("passabilityTextbox"),
+            passabilityRange = document.getElementById("passability"),
+            startButton = document.getElementById("start"),
+            endButton = document.getElementById("end"),
+            calculateButton = document.getElementById("calculate"),
+            mouseOnBoardDown = false,
+            startPressed = false,
+            endPressed = false,
+            startPoint = false,
+            endPoint = false,
+            path = [];
+
         canvas.height = 500;
         canvas.width = 500;
-
-        document.body.appendChild(canvas);
 
         var ctx = canvas.getContext("2d");
 
@@ -30,62 +84,132 @@
             world[x] = [];
             for (var y = 0; y < 50; y++) {
                 world[x][y] = {
-                    passability: 10
+                    passability: 0
                 };
             }
         }
-        world[16][1].passability = 150;
-        world[16][2].passability = 150;
-        world[16][3].passability = 150;
-        world[16][4].passability = 150;
 
-        world[16][5].passability = 150;
-        world[17][5].passability = 150;
-        world[18][5].passability = 150;
-        world[19][5].passability = 150;
+        canvas.addEventListener("mousedown", function (e) {
+            mouseOnBoardDown = true;
+        }, false);
 
-        world[20][5].passability = 150;
-        world[20][6].passability = 150;
-        world[20][7].passability = 150;
-        world[20][8].passability = 150;
-        world[20][9].passability = 150;
-        world[20][10].passability = 150;
-        world[20][11].passability = 150;
-        world[20][12].passability = 150;
-        world[20][13].passability = 150;
-        world[20][14].passability = 150;
-        world[20][15].passability = 150;
-        world[20][16].passability = 150;
-        world[20][17].passability = 150;
+        canvas.addEventListener("mouseup", function (e) {
+            mouseOnBoardDown = false;
+        }, false);
 
-        world[19][17].passability = 150;
-        world[18][17].passability = 150;
-        world[17][17].passability = 150;
-        world[16][17].passability = 150;
-        world[15][17].passability = 150;
-        world[14][17].passability = 150;
-        world[13][17].passability = 150;
+        canvas.addEventListener("mousemove", function (e) {
+            var x = Math.floor(e.offsetX / 10),
+                y = Math.floor(e.offsetY / 10);
 
-        ctx.fillStyle = "black";
-        for (var x = 0; x < 50; x++) {
-            for (var y = 0; y < 50; y++) {
-                if (world[x][y].passability > 100) {
-                    ctx.fillRect(x * 10, y * 10, 10, 10);
-                }
+            e.target.style.cursor = "pointer";
+
+            if (x >= 50 || y >= 50) {
+                return;
             }
-        }
 
-        astar.setWorld(world);
+            if (world[x][y].passability !== currentPassability && mouseOnBoardDown) {
+                world[x][y].passability = currentPassability;
 
-        console.time("Path-finding: ");
-        var path = astar.findPath(5, 10, 25, 11);
-        console.timeEnd("Path-finding: ");
+                ctx.clearRect(x * 10, y * 10, 10, 10);
 
-        ctx.fillStyle = "red";
-        for (var i = 0, len = path.length; i < len; i++) {
-            ctx.fillRect(path[i].x * 10 + 3, path[i].y * 10 + 3, 4, 4);
-        }
+                ctx.fillStyle = "rgba(255, 255, 255, " + (currentPassability / 100) + ")";
+                ctx.fillRect(x * 10, y * 10, 10, 10);
+            }
+        }, false);
+
+        canvas.addEventListener("click", function (e) {
+            var x = Math.floor(e.offsetX / 10),
+                y = Math.floor(e.offsetY / 10);
+
+            if (startPressed) {
+                if (startPoint) {
+                    ctx.clearRect(startPoint[0] * 10, startPoint[1] * 10, 10, 10);
+                }
+
+                startPoint = [x, y];
+                world[x][y].passability = 0;
+
+                ctx.fillStyle = "green";
+                ctx.fillRect(x * 10, y * 10, 10, 10);
+
+                startPressed = false;
+                return;
+            }
+
+            if (endPressed) {
+                if (endPoint) {
+                    ctx.clearRect(endPoint[0] * 10, endPoint[1] * 10, 10, 10);
+                }
+
+                endPoint = [x, y];
+                world[x][y].passability = 0;
+
+                ctx.fillStyle = "red";
+                ctx.fillRect(x * 10, y * 10, 10, 10);
+
+                endPressed = false;
+                return;
+            }
+
+        });
+
+        passabilityRange.addEventListener("change", function (e) {
+            currentPassability = e.target.value - 0;
+
+            if (currentPassability == 100) {
+                passabilityTextbox.value = "Imp.";
+            } else {
+                passabilityTextbox.value = currentPassability;
+            }
+        });
+
+        startButton.addEventListener("click", function (e) {
+            if (endPressed) {
+                endPressed = false;
+            }
+
+            startPressed = true;
+        }, false);
+
+        endButton.addEventListener("click", function (e) {
+            if (startPressed) {
+                startPressed = false;
+            }
+
+            endPressed = true;
+
+        }, false);
+
+        calculateButton.addEventListener("click", function (e) {
+
+            if (!startPoint || !endPoint) {
+                return;
+            }
+
+            for (var i = 0, len = path.length; i < len; i++) {
+                ctx.clearRect(path[i].x * 10, path[i].y * 10, 10, 10);
+                ctx.fillStyle = "rgba(255, 255, 255, " + (world[path[i].x][path[i].y].passability / 100) + ")";
+                ctx.fillRect(path[i].x * 10, path[i].y * 10, 10, 10);
+            }
+
+            astar.setWorld(world);
+
+            path = astar.findPath(startPoint[0], startPoint[1], endPoint[0], endPoint[1]);
+
+            ctx.fillStyle = "black";
+            for (var i = 0, len = path.length; i < len; i++) {
+                ctx.fillRect(path[i].x * 10 + 4, path[i].y * 10 + 4, 2, 2);
+            }
+
+            ctx.fillStyle = "green";
+            ctx.fillRect(startPoint[0] * 10, startPoint[1] * 10, 10, 10);
+
+            ctx.fillStyle = "red";
+            ctx.fillRect(endPoint[0] * 10, endPoint[1] * 10, 10, 10);
+        }, false);
 
     }, false);
+
+    
 </script>
 </html>

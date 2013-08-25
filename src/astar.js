@@ -1,5 +1,5 @@
 (function (global) {
-    var MAX_PASSABILITY = 100,
+    var MAX_PASSABILITY = 99,
         WORLD_HEIGHT,
         WORLD_WIDTH,
         world,
@@ -165,7 +165,7 @@
             for (var i = 0, length = neighbours.length; i < length; i++) {
                 var nX = neighbours[i].x,
                     nY = neighbours[i].y,
-                    cost = current.g + distance(cX, cY, nX, nY);
+                    cost = current.g + distance(cX, cY, nX, nY) + world[nX][nY].passability;
 
                 nodes[nX] = nodes[nX] || [];
 
